@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { Eye, UserX, Trash2 } from "lucide-react";
+import { Eye, UserX, Trash2, Search } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { Input } from "@/components/ui/input";
+import { searchProfiles } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,15 +30,38 @@ const initialUsers: User[] = [
 ];
 
 export default function UsersManagement() {
-  const [users, setUsers] = useState(initialUsers);
+  const [searchQuery, setSearchQuery] = useState("");
   const [viewUser, setViewUser] = useState<User | null>(null);
 
-  const toggleActive = (id: number) => setUsers(prev => prev.map(u => u.id === id ? { ...u, active: !u.active } : u));
-  const deleteUser = (id: number) => setUsers(prev => prev.filter(u => u.id !== id));
+  const { data: users = initialUsers, isLoading } = useQuery({
+    queryKey: ["users", searchQuery],
+    queryFn: () => searchQuery ? searchProfiles(searchQuery) : Promise.resolve(initialUsers),
+    enabled: true,
+  });
+
+  const toggleActive = (id: number) => {
+    // In a real app, this would be a Supabase mutation
+    console.log("Toggle active for", id);
+  };
+
+  const deleteUser = (id: number) => {
+    // In a real app, this would be a Supabase mutation
+    console.log("Delete user", id);
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader title="Users Management" description={`${users.length} registered users`} />
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or email..."
+          className="pl-9"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>

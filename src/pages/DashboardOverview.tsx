@@ -8,51 +8,56 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 
-const userGrowth = [
-  { month: "Jan", users: 1200 }, { month: "Feb", users: 1800 },
-  { month: "Mar", users: 2400 }, { month: "Apr", users: 3100 },
-  { month: "May", users: 3800 }, { month: "Jun", users: 4600 },
-  { month: "Jul", users: 5200 }, { month: "Aug", users: 6100 },
+import { useQuery } from "@tanstack/react-query";
+import { fetchAdminStats, fetchSkillDemandChart, fetchResumeUsageChart, fetchAdminActivity } from "@/lib/api";
+
+// Fallback data for demonstration if backend is not yet available
+const defaultStats = [
+  { title: "Total Users", value: "6,142", change: "+12.5%", changeType: "positive" as const, icon: Users },
+  { title: "Total Skills", value: "384", change: "+8 new", changeType: "positive" as const, icon: TrendingUp, iconColor: "text-accent" },
+  { title: "Learning Resources", value: "1,247", change: "+23 added", changeType: "positive" as const, icon: BookOpen, iconColor: "text-cyan" },
+  { title: "Resume Analyses", value: "12,891", change: "+18.2%", changeType: "positive" as const, icon: FileCheck, iconColor: "text-success" },
 ];
 
-const skillsDemand = [
+const defaultSkills = [
   { skill: "React", demand: 92 }, { skill: "Python", demand: 88 },
   { skill: "AI/ML", demand: 85 }, { skill: "TypeScript", demand: 80 },
   { skill: "Cloud", demand: 75 }, { skill: "DevOps", demand: 70 },
 ];
 
-const resumeUsage = [
+const defaultUsage = [
   { week: "W1", analyses: 120 }, { week: "W2", analyses: 180 },
   { week: "W3", analyses: 220 }, { week: "W4", analyses: 195 },
   { week: "W5", analyses: 310 }, { week: "W6", analyses: 280 },
   { week: "W7", analyses: 350 }, { week: "W8", analyses: 420 },
 ];
 
-const activities = [
+const defaultActivity = [
   { icon: UserPlus, text: "Sarah Johnson created a profile", time: "2 min ago", color: "text-primary" },
   { icon: Zap, text: "New skill 'Rust Programming' added", time: "15 min ago", color: "text-accent" },
   { icon: FileText, text: "Resume analyzed for John Doe", time: "32 min ago", color: "text-cyan" },
-  { icon: UserPlus, text: "Michael Chen signed up", time: "1 hr ago", color: "text-primary" },
-  { icon: Zap, text: "Skill 'Kubernetes' trending up 12%", time: "2 hrs ago", color: "text-success" },
-  { icon: FileText, text: "Batch resume analysis completed (24 resumes)", time: "3 hrs ago", color: "text-cyan" },
 ];
 
 export default function DashboardOverview() {
+  const { data: stats = defaultStats } = useQuery({ queryKey: ["adminStats"], queryFn: fetchAdminStats, retry: 1 });
+  const { data: skills = defaultSkills } = useQuery({ queryKey: ["skillDemand"], queryFn: fetchSkillDemandChart, retry: 1 });
+  const { data: usage = defaultUsage } = useQuery({ queryKey: ["resumeUsage"], queryFn: fetchResumeUsageChart, retry: 1 });
+  const { data: activities = defaultActivity } = useQuery({ queryKey: ["adminActivity"], queryFn: fetchAdminActivity, retry: 1 });
+
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard Overview" description="Platform performance at a glance" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title="Total Users" value="6,142" change="+12.5% from last month" changeType="positive" icon={Users} />
-        <StatCard title="Total Skills" value="384" change="+8 new this week" changeType="positive" icon={TrendingUp} iconColor="text-accent" />
-        <StatCard title="Learning Resources" value="1,247" change="+23 added this month" changeType="positive" icon={BookOpen} iconColor="text-cyan" />
-        <StatCard title="Resume Analyses" value="12,891" change="+18.2% from last month" changeType="positive" icon={FileCheck} iconColor="text-success" />
+        {stats.map((stat: any, i: number) => (
+          <StatCard key={i} {...stat} />
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="User Growth" description="Monthly active users over time">
           <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={userGrowth}>
+            <AreaChart data={usage}>
               <defs>
                 <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(245, 58%, 51%)" stopOpacity={0.3} />
@@ -60,17 +65,17 @@ export default function DashboardOverview() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(228, 14%, 20%)" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
+              <XAxis dataKey={usage[0]?.month ? "month" : "week"} tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
               <YAxis tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
               <Tooltip contentStyle={{ background: "hsl(228, 18%, 12%)", border: "1px solid hsl(228, 14%, 20%)", borderRadius: 8, fontSize: 12 }} />
-              <Area type="monotone" dataKey="users" stroke="hsl(245, 58%, 58%)" fill="url(#userGrad)" strokeWidth={2} />
+              <Area type="monotone" dataKey={usage[0]?.users ? "users" : "analyses"} stroke="hsl(245, 58%, 58%)" fill="url(#userGrad)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
 
         <ChartCard title="Trending Skills Demand" description="Top skills by demand score">
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={skillsDemand} layout="vertical">
+            <BarChart data={skills} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(228, 14%, 20%)" />
               <XAxis type="number" tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
               <YAxis dataKey="skill" type="category" tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" width={80} />
@@ -85,7 +90,7 @@ export default function DashboardOverview() {
         <div className="lg:col-span-2">
           <ChartCard title="Resume Validator Usage" description="Weekly analysis volume">
             <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={resumeUsage}>
+              <LineChart data={usage}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(228, 14%, 20%)" />
                 <XAxis dataKey="week" tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
                 <YAxis tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />

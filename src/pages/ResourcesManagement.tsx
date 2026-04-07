@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Pencil, Trash2, ExternalLink, Search } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { searchLearningResources } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 import { ModalForm } from "@/components/dashboard/ModalForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,20 +38,22 @@ const typeColor: Record<string, string> = {
 };
 
 export default function ResourcesManagement() {
-  const [resources, setResources] = useState(initialResources);
+  const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Resource | null>(null);
   const [form, setForm] = useState({ skill: "", title: "", description: "", url: "", type: "Course" as Resource["type"] });
+
+  const { data: resources = initialResources } = useQuery({
+    queryKey: ["learning_resources", searchQuery],
+    queryFn: () => searchQuery ? searchLearningResources(searchQuery) : Promise.resolve(initialResources),
+  });
 
   const openAdd = () => { setEditing(null); setForm({ skill: "", title: "", description: "", url: "", type: "Course" }); setModalOpen(true); };
   const openEdit = (r: Resource) => { setEditing(r); setForm({ skill: r.skill, title: r.title, description: r.description, url: r.url, type: r.type }); setModalOpen(true); };
 
   const handleSubmit = () => {
-    if (editing) {
-      setResources(prev => prev.map(r => r.id === editing.id ? { ...r, ...form } : r));
-    } else {
-      setResources(prev => [...prev, { id: Date.now(), ...form }]);
-    }
+    // TODO: Implement Supabase mutation (insert/update)
+    console.log("Submit resource", form, editing?.id);
     setModalOpen(false);
   };
 
@@ -58,6 +62,16 @@ export default function ResourcesManagement() {
       <PageHeader title="Learning Resources" description="Manage educational content linked to skills">
         <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1.5" /> Add Resource</Button>
       </PageHeader>
+
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search resources by title or description..."
+          className="pl-9"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>
@@ -80,7 +94,7 @@ export default function ResourcesManagement() {
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" className="h-8 w-8" asChild><a href={r.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" /></a></Button>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setResources(prev => prev.filter(x => x.id !== r.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => console.log("Delete", r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </TableCell>
               </TableRow>
             ))}
