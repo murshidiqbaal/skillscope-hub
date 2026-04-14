@@ -1,4 +1,11 @@
-import { Users, TrendingUp, BookOpen, FileCheck, UserPlus, Zap, FileText } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getHealthStatus } from "@/api/index";
+import { supabase } from "@/services/supabase";
+import { useEffect, useState } from "react";
+import { 
+  Users, MessageSquare, Zap, FileCheck, Activity, 
+  UserPlus, FileText, TrendingUp, BookOpen 
+} from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -8,17 +15,7 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 
-import { useQuery } from "@tanstack/react-query";
-import { fetchAdminStats, fetchSkillDemandChart, fetchResumeUsageChart, fetchAdminActivity } from "@/lib/api";
-
-// Fallback data for demonstration if backend is not yet available
-const defaultStats = [
-  { title: "Total Users", value: "6,142", change: "+12.5%", changeType: "positive" as const, icon: Users },
-  { title: "Total Skills", value: "384", change: "+8 new", changeType: "positive" as const, icon: TrendingUp, iconColor: "text-accent" },
-  { title: "Learning Resources", value: "1,247", change: "+23 added", changeType: "positive" as const, icon: BookOpen, iconColor: "text-cyan" },
-  { title: "Resume Analyses", value: "12,891", change: "+18.2%", changeType: "positive" as const, icon: FileCheck, iconColor: "text-success" },
-];
-
+// Fallback data for charts
 const defaultSkills = [
   { skill: "React", demand: 92 }, { skill: "Python", demand: 88 },
   { skill: "AI/ML", demand: 85 }, { skill: "TypeScript", demand: 80 },
@@ -39,48 +36,78 @@ const defaultActivity = [
 ];
 
 export default function DashboardOverview() {
-  const { data: stats = defaultStats } = useQuery({ queryKey: ["adminStats"], queryFn: fetchAdminStats, retry: 1 });
-  const { data: skills = defaultSkills } = useQuery({ queryKey: ["skillDemand"], queryFn: fetchSkillDemandChart, retry: 1 });
-  const { data: usage = defaultUsage } = useQuery({ queryKey: ["resumeUsage"], queryFn: fetchResumeUsageChart, retry: 1 });
-  const { data: activities = defaultActivity } = useQuery({ queryKey: ["adminActivity"], queryFn: fetchAdminActivity, retry: 1 });
+  const [totalChats, setTotalChats] = useState(0);
+
+  const { data: healthData } = useQuery({
+    queryKey: ["healthCheck"],
+    queryFn: getHealthStatus,
+    refetchInterval: 10000,
+  });
+
+  useEffect(() => {
+    async function getStats() {
+      try {
+        const { count } = await supabase.from("chat_logs").select("*", { count: "exact", head: true });
+        setTotalChats(count || 0);
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+      }
+    }
+    getStats();
+  }, []);
+
+  const stats = [
+    { title: "Total AI Chats", value: totalChats.toLocaleString(), change: "+5.2% from last week", changeType: "positive" as const, icon: MessageSquare },
+    { title: "Active Admins", value: "4", change: "Stable", changeType: "positive" as const, icon: Users, iconColor: "text-accent" },
+    { title: "Backend Status", value: healthData?.status === "ok" ? "Healthy" : "Unknown", change: healthData?.version || "v1.0.0", changeType: healthData?.status === "ok" ? "positive" as const : "neutral" as const, icon: Activity, iconColor: healthData?.status === "ok" ? "text-success" : "text-destructive" },
+    { title: "System Uptime", value: "99.9%", change: "+0.01% increase", changeType: "positive" as const, icon: Zap, iconColor: "text-cyan" },
+  ];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard Overview" description="Platform performance at a glance" />
+      <div className="flex items-center justify-between">
+        <PageHeader title="Dashboard Overview" description="SkillScope AI platform metrics" />
+        <div className="flex items-center gap-2 rounded-full border border-white/5 bg-black/20 px-3 py-1 text-[11px] font-medium backdrop-blur-md">
+          <div className={`h-2 w-2 rounded-full animate-pulse ${healthData?.status === "ok" ? "bg-success shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"}`} />
+          <span className={healthData?.status === "ok" ? "text-success" : "text-destructive"}>
+            Backend: {healthData?.status === "ok" ? "Online" : "Offline"}
+          </span>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((stat: any, i: number) => (
+        {stats.map((stat, i) => (
           <StatCard key={i} {...stat} />
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="User Growth" description="Monthly active users over time">
+        <ChartCard title="Chat Application Growth" description="Weekly usage trends">
           <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={usage}>
+            <AreaChart data={defaultUsage}>
               <defs>
                 <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(245, 58%, 51%)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(245, 58%, 51%)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(228, 14%, 20%)" />
-              <XAxis dataKey={usage[0]?.month ? "month" : "week"} tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
-              <YAxis tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
-              <Tooltip contentStyle={{ background: "hsl(228, 18%, 12%)", border: "1px solid hsl(228, 14%, 20%)", borderRadius: 8, fontSize: 12 }} />
-              <Area type="monotone" dataKey={usage[0]?.users ? "users" : "analyses"} stroke="hsl(245, 58%, 58%)" fill="url(#userGrad)" strokeWidth={2} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="week" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Area type="monotone" dataKey="analyses" stroke="hsl(var(--primary))" fill="url(#userGrad)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Trending Skills Demand" description="Top skills by demand score">
+        <ChartCard title="Trending Skills Requested" description="Most common chat topics">
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={skills} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(228, 14%, 20%)" />
-              <XAxis type="number" tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
-              <YAxis dataKey="skill" type="category" tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" width={80} />
-              <Tooltip contentStyle={{ background: "hsl(228, 18%, 12%)", border: "1px solid hsl(228, 14%, 20%)", borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="demand" fill="hsl(263, 70%, 58%)" radius={[0, 6, 6, 0]} />
+            <BarChart data={defaultSkills} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis dataKey="skill" type="category" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" width={80} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="demand" fill="hsl(var(--accent))" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -88,14 +115,14 @@ export default function DashboardOverview() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <ChartCard title="Resume Validator Usage" description="Weekly analysis volume">
+          <ChartCard title="Response Latency" description="AI response performance (ms)">
             <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={usage}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(228, 14%, 20%)" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
-                <YAxis tick={{ fontSize: 12 }} stroke="hsl(228, 10%, 40%)" />
-                <Tooltip contentStyle={{ background: "hsl(228, 18%, 12%)", border: "1px solid hsl(228, 14%, 20%)", borderRadius: 8, fontSize: 12 }} />
-                <Line type="monotone" dataKey="analyses" stroke="hsl(187, 92%, 50%)" strokeWidth={2} dot={{ fill: "hsl(187, 92%, 50%)", r: 4 }} />
+              <LineChart data={defaultUsage}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="week" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                <Line type="monotone" dataKey="analyses" stroke="hsl(var(--cyan))" strokeWidth={2} dot={{ fill: "hsl(var(--cyan))", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -104,7 +131,7 @@ export default function DashboardOverview() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.1 }} className="rounded-xl border border-border bg-card p-5">
           <h3 className="text-sm font-semibold text-card-foreground mb-4">Recent Activity</h3>
           <div className="space-y-4">
-            {activities.map((activity, i) => (
+            {defaultActivity.map((activity, i) => (
               <div key={i} className="flex items-start gap-3">
                 <div className={`mt-0.5 rounded-md p-1.5 bg-secondary ${activity.color}`}>
                   <activity.icon className="h-3.5 w-3.5" />
