@@ -1,9 +1,21 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+function createSafeClient(): SupabaseClient {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn(
+      "⚠️ Supabase env vars missing (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). " +
+      "Add them to your Vercel Environment Variables."
+    );
+    // Return a client with a placeholder to avoid crash; API calls will fail gracefully
+    return createClient("https://placeholder.supabase.co", "placeholder-key");
+  }
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+export const supabase = createSafeClient();
 
 // Auth Helpers
 export const signIn = async (email: string, password: string) => {

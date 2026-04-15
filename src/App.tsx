@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AdminLayout } from "@/components/dashboard/AdminLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ──────────────────────────────────────────────────
 // Each page becomes its own JS chunk, loaded only when the route is visited.
@@ -51,35 +52,39 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        {/* Outer Suspense catches Login + layout shell loading */}
-        <Suspense fallback={<PageSkeleton />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="*"
-              element={
-                <ProtectedRoute>
-                  <AdminLayout>
-                    {/* Inner Suspense isolates individual page chunk loading */}
-                    <Suspense fallback={<PageSkeleton />}>
-                      <Routes>
-                        <Route path="/"                  element={<DashboardOverview />} />
-                        <Route path="/chat"              element={<AIChatPanel />} />
-                        <Route path="/logs"              element={<ChatLogs />} />
-                        <Route path="/users"             element={<UsersManagement />} />
-                        <Route path="/resume-analytics"  element={<ResumeAnalytics />} />
-                        <Route path="/profile"           element={<AdminProfile />} />
-                        <Route path="*"                  element={<NotFound />} />
-                      </Routes>
-                    </Suspense>
-                  </AdminLayout>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          {/* Outer Suspense catches Login + layout shell loading */}
+          <Suspense fallback={<PageSkeleton />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="*"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      {/* Inner Suspense isolates individual page chunk loading */}
+                      <ErrorBoundary>
+                        <Suspense fallback={<PageSkeleton />}>
+                          <Routes>
+                            <Route path="/"                  element={<DashboardOverview />} />
+                            <Route path="/chat"              element={<AIChatPanel />} />
+                            <Route path="/logs"              element={<ChatLogs />} />
+                            <Route path="/users"             element={<UsersManagement />} />
+                            <Route path="/resume-analytics"  element={<ResumeAnalytics />} />
+                            <Route path="/profile"           element={<AdminProfile />} />
+                            <Route path="*"                  element={<NotFound />} />
+                          </Routes>
+                        </Suspense>
+                      </ErrorBoundary>
+                    </AdminLayout>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );
